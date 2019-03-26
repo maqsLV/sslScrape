@@ -25,7 +25,7 @@ Written by Peter Kim <Author, The Hacker Playbook> and @bbuerhaus
 import sys, socket, ssl, requests, ipaddress
 from requests.packages.urllib3.exceptions import InsecureRequestWarning, InsecurePlatformWarning, SNIMissingWarning
 from socket import socket
-from OpenSSL import SSL
+from OpenSSL import SSL, crypto
 from ndg.httpsclient.subj_alt_name import SubjectAltName
 from pyasn1.codec.der import decoder as der_decoder
 import masscan, errno, os, signal
@@ -79,7 +79,15 @@ def getDomainFromCert(ipAddr, port = 443):
         ssl_sock.do_handshake()
         # get cert data
         cert = ssl_sock.get_peer_certificate()
+        #print cert
         name = cert.get_subject().commonName.decode()
+
+        cert2 = ssl.get_server_certificate((str(ipAddr), '443'))
+        x509 = crypto.load_certificate(crypto.FILETYPE_PEM, cert2)
+        der = crypto.dump_certificate(crypto.FILETYPE_ASN1, x509)
+        with open(ipAddr + '.pem', 'wb') as f: f.write(cert2)
+        #with open(ipAddr + '.x509', 'wb') as f: f.write(x509)
+        with open(ipAddr + '.der', 'wb') as f: f.write(der)
         # try to save all cn/alt names
         try:
             alt = get_subj_alt_name(cert)
@@ -127,6 +135,7 @@ if __name__ == "__main__":
         sys.exit(1)
     mas = masscan.PortScanner()
     mas.scan(cidr, ports='443')
+    #print mas.all_hosts
     for host in mas.all_hosts:
         host = str(host)
         try:
